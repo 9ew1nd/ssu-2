@@ -5,6 +5,8 @@ import random
 
 bot = telebot.TeleBot(key.keyword)
 
+teachers_id = [676103951]
+
 questions = ["С помощью какой команды осуществляется считывание с клавиатуры?",
                      "Как получить последнюю цифру целого числа n?",
                      "Как запустить цикл от большего числа к меньшему (от a до b, a > b)?",
@@ -74,9 +76,11 @@ def get_text_messages(message):
         key_menu_python = types.InlineKeyboardButton(text='Изучение Python 🐍', callback_data='python')
         key_menu_oge = types.InlineKeyboardButton(text="ОГЭ 💯", callback_data='oge')
         key_menu_ege = types.InlineKeyboardButton(text="ЕГЭ 🖥️", callback_data='ege')
+        key_sam_rab = types.InlineKeyboardButton(text="Самостоятельные работы ❓", callback_data='sam_rab')
         keyboard2.add(key_menu_python)
         keyboard2.add(key_menu_oge)
         keyboard2.add(key_menu_ege)
+        keyboard2.add(key_sam_rab)
         bot.send_message(message.from_user.id, text="Навигация. Выберите нужный раздел", reply_markup=keyboard2)
     else:
         bot.send_message(message.from_user.id, "Я вас не понимаю! Чтобы получить информацию,"
@@ -87,16 +91,18 @@ def callback_inline(call):
     if call.message:
         # эта часть относится к callback_data = 'quiz'
         global current_question, score, nums
-
+        print(call.from_user.id)
         if call.data == "menu":
             # добавить текст с возможностями
             keyboard2 = types.InlineKeyboardMarkup(row_width=1)
             key_menu_python = types.InlineKeyboardButton(text='Изучение Python 🐍', callback_data='python')
             key_menu_oge = types.InlineKeyboardButton(text="ОГЭ 💯", callback_data='oge')
             key_menu_ege = types.InlineKeyboardButton(text="ЕГЭ 🖥️", callback_data='ege')
+            key_sam_rab = types.InlineKeyboardButton(text="Самостоятельные работы ❓", callback_data='sam_rab')
             keyboard2.add(key_menu_python)
             keyboard2.add(key_menu_oge)
             keyboard2.add(key_menu_ege)
+            keyboard2.add(key_sam_rab)
             bot.send_message(call.from_user.id, text="Навигация. Выберите нужный раздел", reply_markup=keyboard2)
 
         if call.data == "stop":
@@ -104,9 +110,11 @@ def callback_inline(call):
             key_menu_python = types.InlineKeyboardButton(text='Изучение Python 🐍', callback_data='python')
             key_menu_oge = types.InlineKeyboardButton(text="ОГЭ 💯", callback_data='oge')
             key_menu_ege = types.InlineKeyboardButton(text="ЕГЭ 🖥️", callback_data='ege')
+            key_sam_rab = types.InlineKeyboardButton(text="Самостоятельные работы ❓", callback_data='sam_rab')
             keyboard2.add(key_menu_python)
             keyboard2.add(key_menu_oge)
             keyboard2.add(key_menu_ege)
+            keyboard2.add(key_sam_rab)
             bot.send_message(call.from_user.id, text=f"Викторина остановлена. Ваш счёт: {score}. Выберите нужный раздел",
                              reply_markup=keyboard2)
 
@@ -119,6 +127,54 @@ def callback_inline(call):
             # добавить описание квиза
             question = "Вы хотите сыграть в викторину по Python?"
             bot.send_message(call.from_user.id, text=question, reply_markup=keyboard1)
+
+        # меню для тичеров пока не написано
+        if call.data == 'sam_rab':
+            keyboard1 = types.InlineKeyboardMarkup(row_width=1)
+            if call.from_user.id in teachers_id:
+                teach_key = types.InlineKeyboardButton("Пул работ", callback_data='teacher')
+                keyboard1.add(teach_key)
+            work1_key = types.InlineKeyboardButton("Самостоятельная работа 1", callback_data='work 1')
+            key_works_back = types.InlineKeyboardButton("Назад 🔙", callback_data='menu')
+            keyboard1.add(work1_key, key_works_back)
+            bot.send_message(call.from_user.id, 'Выберите нужный пункт', reply_markup=keyboard1)
+
+        if call.data.split()[0] == 'work':
+            def student_answer(message):
+                acept = bot.send_message(message.from_user.id, "Вы уверены и хотите отправить работу на проверку?"
+                                                               " (да/нет)\n\n"
+                                                               "Ваш ответ:\n" + message.text)
+                bot.register_next_step_handler(acept, acept_f, message.text)
+            def acept_f(message, last_msg):
+                if message.text.lower() == 'да':
+                    f = open('work_1_logs.txt', 'r')
+                    logs_1 = []
+                    for i in f:
+                        logs_1.append(i)
+                    if str(message.from_user.id) + "\n" not in logs_1:
+                        f = open('work_1_logs.txt', 'a')
+                        f.write(str(message.from_user.id) + '\n')
+                        bot.send_message(message.chat.id, 'Записано')
+                        for i in teachers_id:
+                            bot.send_message(i, f'Новый ответ от {message.from_user.first_name} '
+                                            f'{message.from_user.last_name}, работа {call.data.split()[1]}\n\n'
+                                                f'Текст ответа:\n{last_msg}')
+                    else:
+                        bot.send_message(message.from_user.id, 'Ошибка! Вы уже отправляли данную работу')
+                    f.close()
+                else:
+                    repeat = bot.send_message(message.from_user.id, 'Повторите ввод')
+                    bot.register_next_step_handler(repeat, student_answer)
+            if call.data.split()[1] == '1':
+                cap = ("Это тестовая работа, в следующем сообщении пришлите ваш ответ в формате:\n\n"
+                       "Имя и Фамилия, класс\n\nОтветы:\n1.\n2.\n3.\n...")
+                ''''
+                doc = bot.send_document(call.from_user.id, open('work_1.pdf', 'rb'),
+                                  caption=cap)
+                '''
+                doc = bot.send_message(call.from_user.id, cap)
+                bot.register_next_step_handler(doc, student_answer)
+
 
         if call.data == "python":
             keyboard_python = types.InlineKeyboardMarkup(row_width=1)
